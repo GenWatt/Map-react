@@ -18,14 +18,6 @@ const boundariesStyle = {
   color: "white",
   weight: 1
 };
-const layers:string[] = ["wind","depth","temp",];
-//@ts-ignore
-const depthIcon = L.icon({
-  iconUrl: 'logo512.png',
-  iconSize:     [38, 95], // size of the icon
-  iconAnchor:   [22, 94], // point of the icon which will correspond to marker's location
-});
-const markers:any=[];
 //@ts-ignore
 if (!window.copy_of_W) {
   //@ts-ignore
@@ -36,49 +28,18 @@ if (!window.copy_of_W) {
     //@ts-ignore
   window.W = Object.assign({}, window.copy_of_W);
   }
+//@ts-ignore
+  const polyline = L.polyline([])
 
 function App() {
-  const [isShowLayers, setShowLayers] = useState<Boolean>(false);
-  const [store,setStore] = useState<any>(null);
-  const [map,setMap] = useState<any>(null);
-  
-  const handleLayerChange=(layer:string)=>{
-    if(!store) return
-    switch(layer){
-      case "wind":
-        store.set("overlay",layer);
-        store.set("particlesAnim","on");
-        if(markers.length) removeMarkers();
-        break;
-      case "temp":
-        store.set("particlesAnim","off");
-        store.set("overlay",layer);
-        if(markers.length) removeMarkers();
-        break;
-      case "depth":
-        store.set("particlesAnim","off");
-        store.set("overlay","wind");
-        setMarkers();
-        break;
-      default: return;
-    }  
-}
+  const [map,setMap] = useState<any>(null)
+  const [draw,setDraw] = useState<any>(false)
 
-function setMarkers(){
-  //@ts-ignore
-  const  marker = new L.Marker([50,20], {icon:depthIcon});
-  markers.push(marker);
-  map.addLayer(marker);
-}
-
-function removeMarkers(){
-  markers.forEach((marker:any)=>map.removeLayer(marker))
-}
   useEffect(() => {
     //@ts-ignore
     windyInit(options, (windyAPI) => {
       // windyAPI is ready, and contain 'map', 'store',
-      const { map, colors,store } = windyAPI;
+      const { map, colors, store } = windyAPI;
       // .map is instance of Leaflet map
       colors.wind.changeColor([
           [2, [8, 4, 56]],
@@ -86,31 +47,48 @@ function removeMarkers(){
       ]);
       //@ts-ignore
       L.geoJSON(world, { style: boundariesStyle }).addTo(map);
-      setStore(store);
-      setMap(map);
+      setMap(map)
+      //@ts-ignore
+     polyline.addTo(map)
   });
   }, []);
+  function handleFile(e:any){
+      const input = e.target;
+      const reader = new FileReader();
+      reader.onload = function(){
+        const dataURL:any = reader.result;
 
-  useEffect(()=>handleLayerChange("temp"),[store]);
+        //@ts-ignore
+        new L.GPX(dataURL, {async: true}).on('loaded', function(e) {
+          map.fitBounds(e.target.getBounds());
+        }).addTo(map);
+      };
+      reader.readAsText(input.files[0]);
+  }
+
+  function handleDownload(){  console.log(polyline.getLatLngs())
+  }
+  
+  function onMapClick(e:any){
+   if(!draw) return
+    //@ts-ignore
+    polyline.addLatLng(L.latLng(e.latlng))
+    map.setView(e.latlng)
+  }
+
+  useEffect(()=> {
+    if(draw) map.on("click",onMapClick)
+    else map.off("click")
+
+    return ()=> map.off("click")
+  },[draw])
 
   return (
     <div className="container">
       <div id="windy" style={{width:"100%",height:600}}></div>
-      <nav className="map-nav">
-        <button className="layer-btn" onClick={()=>setShowLayers(!isShowLayers)}>Show</button>
-        <button className="layer-btn">POP</button>
-        <button className="layer-btn">Hey</button>
-      </nav>
-      {isShowLayers&&<ul className="layer-container">
-        {layers.map(layer=>(
-        <li className="layer-item" onClick={()=>handleLayerChange(layer)} key={layer}>
-          <div className="layer-circle">
-            <i></i>
-          </div>
-          <p className="layer-label">{layer}</p>
-        </li>
-        ))}
-      </ul>}
+      <button onClick={()=>setDraw(!draw)}>draw</button>
+      <button onClick={handleDownload}>Download</button>
+      <input type="file" onChange={(e)=>handleFile(e)}/>
     </div>
   );
 }

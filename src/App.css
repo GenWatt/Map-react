@@ -72,3 +72,11 @@
 .layer-label {
     font-size: 0.9em;
 }
+
+.leaflet-control-container {
+    display: block!important;
+}
+
+.leaflet-control-container a {
+    color: black!important;
+}
